@@ -96,6 +96,7 @@ td.num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 tbody tr { cursor: pointer; }
 tbody tr:hover { background: var(--bg); }
 tbody tr.sel { background: var(--accent-soft); }
+@media (max-width: 1180px) { #tbl th, #tbl td { padding-left: 6px; padding-right: 6px; } #tbl thead th { letter-spacing: .03em; } }
 @media (max-width: 480px) {
   #tbl th:nth-child(3), #tbl td:nth-child(3) { display: none; }
   th, td { padding: 8px 5px; }
