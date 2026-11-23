@@ -72,7 +72,6 @@ svg.map { width: 100%; height: auto; display: block; max-height: 78vh; overflow:
 .wrap > *, .detail > *, .board > * { min-width: 0; }  /* let wide tables scroll inside their box */
 .map .other { fill: var(--land-other); stroke: var(--line); stroke-width: .6; }
 .map .de { fill: var(--land); stroke: var(--muted); stroke-width: .9; stroke-opacity: .5; }
-.map .ring { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 4; opacity: .55; }
 .map .ray { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
 .map .ray.hl { stroke-width: 3.5; opacity: 1; }
 .map .ray.dim { opacity: .25; }
@@ -221,7 +220,7 @@ function legend() {
     ? [['--t1', 'unter 3 h'], ['--t2', '3–4 h'], ['--t3', '4–5 h'], ['--t4', 'über 5 h']]
     : [['--good', 'ab 50 % pünktlich'], ['--warn', '30–50 %'], ['--bad', 'unter 30 %'], ['--nodata', 'keine Daten']];
   document.getElementById('legend').innerHTML = items.map(([t, l]) => `<span><i style="background:var(${t})"></i>${l}</span>`).join('')
-    + (state.metric === 'time' ? '<span>gestrichelter Kreis: Reichweite der Städte unter 3 h</span>' : '');
+    + (state.metric === 'time' ? '<span>Ring um den Punkt = unter 3 h</span>' : '');
 }
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -240,12 +239,6 @@ function drawMap() {
   g.nb.forEach(d => el('path', { d, class: 'other' }, svg));
   el('path', { d: g.de, class: 'de' }, svg);
   const o = DATA.origin;
-  // approx. 3 h radius: mean distance of cities with median < 3 h, in map units
-  const fast = DATA.cities.filter(c => under3(c[state.dir].median_min));
-  if (state.metric === 'time' && fast.length) {
-    const r = Math.max(...fast.map(c => Math.hypot(c.x - o.x, c.y - o.y)));
-    el('circle', { cx: o.x, cy: o.y, r: r + 12, class: 'ring' }, svg);
-  }
   const rays = el('g', { fill: 'none' }, svg);
   const cities = el('g', {}, svg);
   // routes traced through all stops of the trains used; slow ones first so fast/selected end on top
