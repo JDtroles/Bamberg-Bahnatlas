@@ -219,8 +219,7 @@ function legend() {
   const items = state.metric === 'time'
     ? [['--t1', 'unter 3 h'], ['--t2', '3–4 h'], ['--t3', '4–5 h'], ['--t4', 'über 5 h']]
     : [['--good', 'ab 50 % pünktlich'], ['--warn', '30–50 %'], ['--bad', 'unter 30 %'], ['--nodata', 'keine Daten']];
-  document.getElementById('legend').innerHTML = items.map(([t, l]) => `<span><i style="background:var(${t})"></i>${l}</span>`).join('')
-    + (state.metric === 'time' ? '<span>Ring um den Punkt = unter 3 h</span>' : '');
+  document.getElementById('legend').innerHTML = items.map(([t, l]) => `<span><i style="background:var(${t})"></i>${l}</span>`).join('');
 }
 
 const NS = 'http://www.w3.org/2000/svg';
