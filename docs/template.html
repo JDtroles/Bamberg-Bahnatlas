@@ -1,0 +1,382 @@
+<title>Bahnatlas Bamberg</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: timetable atlas – map with Bamberg as hub on the left, departure-board ranking on the right, details below */
+:root {
+  --bg: #f3f5f6;
+  --surface: #ffffff;
+  --ink: #15202b;
+  --muted: #5a6773;
+  --line: #d5dce1;
+  --land: #e3e8eb;
+  --land-other: #edf0f2;
+  --water: #f3f5f6;
+  --accent: #0b7a6e;       /* unter 3 Stunden */
+  --accent-soft: #c9e7e2;
+  --b2: #5f9fb0;           /* 3-4 h */
+  --b3: #95b5c6;           /* 4-5 h */
+  --b4: #bccbd6;           /* > 5 h */
+  --good: #2f8a4a;
+  --warn: #c58a12;
+  --bad: #c2412d;
+  --nodata: #a9b3bb;
+  --on-sem: #ffffff;       /* text on status pills */
+  --display: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+  --body: 'Barlow', 'Segoe UI', Arial, sans-serif;
+  --mono: 'IBM Plex Mono', Consolas, 'Courier New', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f161c; --surface: #16212a; --ink: #e6ecef; --muted: #93a2ad; --line: #2a3843;
+    --land: #1d2a34; --land-other: #172229; --water: #0f161c;
+    --accent: #3cc2ae; --accent-soft: #17423c; --b2: #4f8ea0; --b3: #3f6676; --b4: #34505d;
+    --good: #5cc278; --warn: #e2ad3e; --bad: #ec6a54; --nodata: #5b6973; --on-sem: #0f161c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f161c; --surface: #16212a; --ink: #e6ecef; --muted: #93a2ad; --line: #2a3843;
+  --land: #1d2a34; --land-other: #172229; --water: #0f161c;
+  --accent: #3cc2ae; --accent-soft: #17423c; --b2: #4f8ea0; --b3: #3f6676; --b4: #34505d;
+  --good: #5cc278; --warn: #e2ad3e; --bad: #ec6a54; --nodata: #5b6973; --on-sem: #0f161c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 24px; }
+header h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+header p { margin: 8px 0 0; color: var(--muted); max-width: 70ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; }
+.ctl { display: grid; gap: 6px; }
+.ctl > span { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { font: 500 14px var(--body); color: var(--ink); background: transparent; border: 0; padding: 7px 14px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg button:focus-visible, th button:focus-visible, .city:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.mapbox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+svg.map { width: 100%; height: auto; display: block; max-height: 78vh; overflow: hidden; }
+.mapbox { overflow: hidden; }
+.wrap > *, .detail > *, .board > * { min-width: 0; }  /* let wide tables scroll inside their box */
+.map .other { fill: var(--land-other); stroke: var(--line); stroke-width: .6; }
+.map .de { fill: var(--land); stroke: var(--muted); stroke-width: .9; stroke-opacity: .5; }
+.map .ring { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 4; opacity: .55; }
+.map .ray { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+.map .ray.hl { stroke-width: 3.5; opacity: 1; }
+.map .ray.dim { opacity: .25; }
+.map .ray.alt { stroke-width: 2; stroke-dasharray: 4 4; opacity: .7; }
+.map .ray.sel { stroke-width: 5; opacity: 1; }
+.map .dot { stroke: var(--surface); stroke-width: 1.5; }
+.map .halo { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.map.narrow text.t { display: none; }
+.map text { font: 600 var(--fs, 12px) var(--body); fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.map text.t { font: 500 calc(var(--fs, 12px) * .87) var(--mono); fill: var(--muted); }
+.map .city { cursor: pointer; }
+.map .city.sel text:first-of-type { text-decoration: underline; }
+.map .origin { fill: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.board { min-width: 0; display: grid; gap: 10px; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+th button { all: unset; cursor: pointer; }
+th button[data-on]::after { content: ' ▾'; }
+td.num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--bg); }
+tbody tr.sel { background: var(--accent-soft); }
+@media (max-width: 480px) {
+  #tbl th:nth-child(3), #tbl td:nth-child(3) { display: none; }
+  th, td { padding: 8px 5px; }
+  thead th { letter-spacing: .02em; }
+  .pill { min-width: 0; padding: 1px 6px; }
+}
+tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+tbody tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; min-width: 3.2em; padding: 1px 7px; border-radius: 99px; font-family: var(--mono); font-size: 13px; text-align: center; color: var(--on-sem); }
+.pill.na { background: transparent; color: var(--muted); border: 1px dashed var(--nodata); }
+.u3 { color: var(--accent); font-weight: 600; }
+.detail { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+.detail h2 { font-family: var(--display); font-weight: 600; font-size: 1.8rem; line-height: 1.1; margin: 0; }
+.detail h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.fact { display: grid; gap: 2px; }
+.fact b { font-family: var(--mono); font-size: 1.3rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.fact span { font-size: 13px; color: var(--muted); }
+.jlist td { font-size: 13px; padding: 6px 8px; }
+.jlist td.via { text-align: left; white-space: normal; color: var(--muted); min-width: 12em; }
+.muted { color: var(--muted); }
+footer { color: var(--muted); font-size: 13px; display: grid; gap: 8px; max-width: 90ch; }
+footer h2 { font-family: var(--display); font-size: 1.3rem; color: var(--ink); margin: 8px 0 0; }
+footer p, footer ul { margin: 0; }
+footer a { color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .map .ray, .map .dot { transition: stroke .2s, fill .2s, stroke-width .2s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Bahnatlas Bamberg</h1>
+    <p>Bahnreisen zwischen Bamberg und den 15 deutschen Städten mit mindestens 500.000 Einwohner:innen, werktags am Nachmittag (Abfahrt 14–18 Uhr). <span id="hdr-days"></span></p>
+  </header>
+
+  <div class="controls" role="group" aria-label="Ansicht">
+    <div class="ctl"><span>Richtung</span>
+      <div class="seg" id="dir">
+        <button id="dir-out" data-v="out" aria-pressed="true">ab Bamberg</button>
+        <button id="dir-in" data-v="in" aria-pressed="false">nach Bamberg</button>
+      </div></div>
+    <div class="ctl"><span>Karte färben nach</span>
+      <div class="seg" id="metric">
+        <button id="m-time" data-v="time" aria-pressed="true">Fahrzeit</button>
+        <button id="m-delay" data-v="delay" aria-pressed="false">Pünktlichkeit</button>
+      </div></div>
+  </div>
+
+  <div class="main">
+    <div class="mapbox">
+      <svg class="map" id="map" role="img" aria-label="Karte Deutschlands mit Bahnverbindungen ab Bamberg"></svg>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="board">
+      <div class="tablewrap">
+        <table id="tbl">
+          <thead><tr>
+            <th><button data-k="city">Stadt</button></th>
+            <th><button data-k="median">Fahrzeit</button></th>
+            <th><button data-k="fastest">schnellste</button></th>
+            <th><button data-k="ch">Umst.</button></th>
+            <th><button data-k="ontime">pünktlich</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted" style="margin:0;font-size:13px">Linien auf der Karte = Streckenverlauf der häufigsten Verbindung, gezogen durch alle Halte der genutzten Züge. Fahrzeit = Median der tatsächlichen Fahrplan-Reisezeiten (ohne Umstiegs-Aufschlag) aller gewählten Verbindungen mit Abfahrt 14–18 Uhr. <span class="u3">Fett türkis</span> = unter 3 Stunden. „pünktlich“ = Wahrscheinlichkeit, alle Anschlüsse zu erreichen und weniger als 6 Minuten verspätet anzukommen. Zeile anklicken für Details.</p>
+    </div>
+  </div>
+
+  <section class="detail" id="detail" aria-live="polite"></section>
+
+  <footer>
+    <h2>Methode und Quellen</h2>
+    <ul>
+      <li><b>Städte:</b> Statistisches Bundesamt, Gemeindeverzeichnis „Städte nach Fläche, Bevölkerung und Bevölkerungsdichte“, Stand 31.12.2024 (Basis Zensus 2022), alle Städte ab 500.000 Einwohner:innen. <a href="https://www.destatis.de/DE/Themen/Laender-Regionen/Regionales/Gemeindeverzeichnis/Administrativ/05-staedte.html" target="_blank" rel="noopener">destatis.de</a></li>
+      <li><b>Fahrzeiten:</b> Sollfahrplan Fern- und Regionalverkehr aus GTFS.DE (Daten: DELFI e.V., GTFS.DE, OpenStreetMap-Mitwirkende; CC BY 4.0), Stand 21.11.2026. Eigene Routensuche (Connection Scan mit begrenzter Umstiegszahl), Umstiegszeit mindestens 5 Minuten am selben Bahnhof. Stichtage <span id="ft-days"></span>. Baustellen nach diesem Stand sind nicht enthalten. <a href="https://gtfs.de/en/feeds/" target="_blank" rel="noopener">gtfs.de</a></li>
+      <li><b>Pünktlichkeit:</b> Historische Ist-Daten August–Oktober 2026, Montag–Freitag, aus dem Datensatz „Deutsche Bahn Data“ von piebro (CC BY 4.0, erhoben über die DB Timetables API). Je Teilstrecke werden alle Ankünfte desselben Zugtyps zur selben Planzeit am Ausstiegsbahnhof ausgewertet. Als verspätet gilt wie bei der DB eine Ankunft ab 6 Minuten; Ausfälle zählen als verspätet. Ein Anschluss gilt als verpasst, wenn die Verspätung des Zubringers größer ist als die geplante Umstiegszeit. Teilstrecken werden als unabhängig angenommen. <a href="https://huggingface.co/datasets/piebro/deutsche-bahn-data" target="_blank" rel="noopener">huggingface.co/datasets/piebro/deutsche-bahn-data</a></li>
+      <li><b>Verbindungswahl:</b> Pro Abfahrt wird die Verbindung mit der geringsten „gefühlten“ Reisezeit gewählt: Ankunftszeit plus 30 Minuten je Umstieg. Ein Direktzug wird also bevorzugt, solange er höchstens 30 Minuten langsamer ist. Der Aufschlag dient nur der Auswahl; alle angezeigten Fahrzeiten sind die echten Fahrplanzeiten von Abfahrt bis Ankunft. Als Ankunft in der Stadt zählen auch weitere Fernbahnhöfe (z. B. Köln Messe/Deutz, Berlin Südkreuz, Hamburg-Harburg).</li>
+      <li><b>Preise:</b> nicht enthalten. Es gibt keine frei zugängliche offizielle Preis-Schnittstelle, und DB sperrt automatisierte Abfragen.</li>
+      <li><b>Karte:</b> Natural Earth über world-atlas (gemeinfrei). Streckenverläufe sind durch alle Halte der genutzten Züge gezogen; der Fahrplan enthält keine Gleisgeometrie, daher verlaufen die Linien zwischen zwei Halten gerade.</li>
+    </ul>
+    <p>Alle Angaben ohne Gewähr. Der Fahrplan zeigt geplante Verbindungen; tatsächliche Verbindungen auf bahn.de können wegen Baustellen oder Fahrplanänderungen abweichen.</p>
+  </footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const state = { dir: 'out', metric: 'time', sel: null, sort: 'median' };
+const VALID = { dir: ['out', 'in'], metric: ['time', 'delay'], sort: ['city', 'median', 'fastest', 'ch', 'ontime'] };
+try {  // restore only known values (older versions stored settings that no longer exist)
+  const s = JSON.parse(localStorage.getItem('bahnatlas') || '{}');
+  for (const k in VALID) if (VALID[k].includes(s[k])) state[k] = s[k];
+} catch (e) {}
+const save = () => { try { localStorage.setItem('bahnatlas', JSON.stringify({ dir: state.dir, metric: state.metric, sort: state.sort })); } catch (e) {} };
+const under3 = m => m != null && m < 180;
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmtDur = m => m == null ? '–' : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h`;
+const fmtCh = c => c == null ? '–' : Number.isInteger(c) ? String(c) : `${Math.floor(c)}–${Math.ceil(c)}`;
+const fmtPct = p => p == null ? '–' : `${Math.round(p * 100)} %`;
+const fmtDate = s => new Date(s + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' });
+
+
+function color(c) {
+  const d = c[state.dir];
+  if (state.metric === 'time') {
+    const m = d.median_min;
+    if (m == null) return css('--nodata');
+    return m < 180 ? css('--accent') : m < 240 ? css('--b2') : m < 300 ? css('--b3') : css('--b4');
+  }
+  const p = d.delay.p_ontime;
+  if (p == null) return css('--nodata');
+  return p >= 0.5 ? css('--good') : p >= 0.3 ? css('--warn') : css('--bad');
+}
+
+function legend() {
+  const items = state.metric === 'time'
+    ? [['--accent', 'unter 3 h'], ['--b2', '3–4 h'], ['--b3', '4–5 h'], ['--b4', 'über 5 h']]
+    : [['--good', 'ab 50 % pünktlich'], ['--warn', '30–50 %'], ['--bad', 'unter 30 %'], ['--nodata', 'keine Daten']];
+  document.getElementById('legend').innerHTML = items.map(([t, l]) => `<span><i style="background:var(${t})"></i>${l}</span>`).join('')
+    + (state.metric === 'time' ? '<span>gestrichelter Kreis: Reichweite der Städte unter 3 h</span>' : '');
+}
+
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; }
+
+function drawMap() {
+  const svg = document.getElementById('map');
+  const g = DATA.geo;
+  svg.setAttribute('viewBox', `0 0 ${g.w} ${g.h}`);
+  svg.innerHTML = '';
+  // keep labels readable: SVG text shrinks with the map, so scale it by viewBox units per screen pixel
+  const k = g.w / Math.max(1, svg.clientWidth || g.w);
+  const fs = Math.max(12, 11 * k);
+  svg.style.setProperty('--fs', `${fs}px`);
+  svg.classList.toggle('narrow', k > 1.5);
+  g.nb.forEach(d => el('path', { d, class: 'other' }, svg));
+  el('path', { d: g.de, class: 'de' }, svg);
+  const o = DATA.origin;
+  // approx. 3 h radius: mean distance of cities with median < 3 h, in map units
+  const fast = DATA.cities.filter(c => under3(c[state.dir].median_min));
+  if (state.metric === 'time' && fast.length) {
+    const r = Math.max(...fast.map(c => Math.hypot(c.x - o.x, c.y - o.y)));
+    el('circle', { cx: o.x, cy: o.y, r: r + 12, class: 'ring' }, svg);
+  }
+  const rays = el('g', { fill: 'none' }, svg);
+  const cities = el('g', {}, svg);
+  // routes traced through all stops of the trains used; slow ones first so fast/selected end on top
+  const order = DATA.cities.slice().sort((a, b) => (b[state.dir].median_min ?? 1e9) - (a[state.dir].median_min ?? 1e9));
+  const selC = order.find(c => c.city === state.sel);
+  for (const c of order) {
+    const rs = c[state.dir].routes || [];
+    if (!rs.length) continue;
+    const u3 = under3(c[state.dir].median_min);
+    el('path', { d: rs[0].d, stroke: color(c), class: 'ray' + (u3 && state.metric === 'time' ? ' hl' : '') + (selC && selC !== c ? ' dim' : '') }, rays);
+  }
+  if (selC) {
+    const rs = selC[state.dir].routes || [];
+    rs.slice(1).forEach(r => el('path', { d: r.d, stroke: color(selC), class: 'ray alt' }, rays));
+    if (rs.length) el('path', { d: rs[0].d, stroke: color(selC), class: 'ray sel' }, rays);
+  }
+  for (const c of DATA.cities) {
+    const d = c[state.dir];
+    const col = color(c);
+    const u3 = under3(d.median_min);
+    const grp = el('g', { class: 'city' + (state.sel === c.city ? ' sel' : ''), tabindex: 0, role: 'button', 'aria-label': `${c.city}: ${fmtDur(d.median_min)}` }, cities);
+    const r = 3 + Math.sqrt(c.pop / 100000) * 1.6;
+    if (u3) el('circle', { cx: c.x, cy: c.y, r: r + 4, class: 'halo' }, grp);
+    el('circle', { cx: c.x, cy: c.y, r, fill: col, class: 'dot' }, grp);
+    // label placement: [left side?, vertical offset] – hand-tuned for the dense Rhine-Ruhr area
+    const place = { Dortmund: [false, -10], Essen: [false, 14], Duisburg: [true, -8], 'Düsseldorf': [true, 8], Köln: [true, 12],
+      'Frankfurt am Main': [true, 0], Stuttgart: [true, 0] }[c.city] || [false, 0];
+    const left = place[0], s = fs / 12, dy = place[1] * s;  // offsets were tuned for 12-unit text
+    const tx = left ? c.x - r - 4 * s : c.x + r + 4 * s;
+    const anchor = left ? 'end' : 'start';
+    const t = el('text', { x: tx, y: c.y + 4 * s + dy, 'text-anchor': anchor }, grp); t.textContent = c.city;
+    const val = state.metric === 'time' ? fmtDur(d.median_min) : fmtPct(d.delay.p_ontime);
+    const t2 = el('text', { x: tx, y: c.y + 16 * s + dy, 'text-anchor': anchor, class: 't' }, grp); t2.textContent = val;
+    grp.addEventListener('click', () => select(c.city, false));
+    grp.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(c.city, false); } });
+  }
+  el('circle', { cx: o.x, cy: o.y, r: 6, class: 'origin' }, svg);
+  const bt = el('text', { x: o.x + 9 * fs / 12, y: o.y - 7 * fs / 12 }, svg); bt.textContent = 'Bamberg';
+  bt.setAttribute('style', 'font-weight:700');
+  // widen the view so labels left of the Rhine are not cut off (matters on narrow screens)
+  try {
+    const bb = cities.getBBox();
+    const x0 = Math.min(0, Math.floor(bb.x - 4)), x1 = Math.max(g.w, Math.ceil(bb.x + bb.width + 4));
+    svg.setAttribute('viewBox', `${x0} 0 ${x1 - x0} ${g.h}`);
+  } catch (e) {}
+}
+
+function pill(v, kind) {
+  if (v == null) return `<span class="pill na">–</span>`;
+  const col = v >= 0.5 ? 'var(--good)' : v >= 0.3 ? 'var(--warn)' : 'var(--bad)';
+  return `<span class="pill" style="background:${col}">${Math.round(v * 100)} %</span>`;
+}
+
+function rows() {
+  const d = state.dir;
+  const list = DATA.cities.map(c => ({ c, city: c.city, median: c[d].median_min, fastest: c[d].fastest_min, ch: c[d].median_changes,
+    ontime: c[d].delay.p_ontime }));
+  const k = state.sort;
+  list.sort((a, b) => k === 'city' ? a.city.localeCompare(b.city, 'de')
+    : k === 'ontime' ? (b.ontime ?? -1) - (a.ontime ?? -1)
+    : (a[k] ?? 1e9) - (b[k] ?? 1e9));
+  return list;
+}
+
+function drawTable() {
+  document.querySelectorAll('#tbl th button').forEach(b => {
+    const on = b.dataset.k === state.sort;
+    b.toggleAttribute('data-on', on);
+    if (on) b.parentElement.setAttribute('aria-sort', b.dataset.k === 'ontime' ? 'descending' : 'ascending');
+    else b.parentElement.removeAttribute('aria-sort');
+  });
+  document.querySelector('#tbl tbody').innerHTML = rows().map(r => `
+    <tr data-c="${r.city}" class="${state.sel === r.city ? 'sel' : ''}">
+      <td>${r.city}</td>
+      <td class="num ${under3(r.median) ? 'u3' : ''}">${fmtDur(r.median)}</td>
+      <td class="num">${fmtDur(r.fastest)}</td>
+      <td class="num">${fmtCh(r.ch)}</td>
+      <td>${pill(r.ontime, 'delay')}</td>
+    </tr>`).join('');
+  document.querySelectorAll('#tbl tbody tr').forEach(tr => {
+    tr.tabIndex = 0;
+    tr.addEventListener('click', () => select(tr.dataset.c, true));
+    tr.addEventListener('keydown', e => { if (e.key === 'Enter') select(tr.dataset.c, true); });
+  });
+}
+
+function drawDetail() {
+  const box = document.getElementById('detail');
+  const c = DATA.cities.find(x => x.city === state.sel) || DATA.cities.slice().sort((a, b) => (a[state.dir].median_min ?? 1e9) - (b[state.dir].median_min ?? 1e9))[0];
+  const d = c[state.dir];
+  const from = state.dir === 'out' ? 'Bamberg' : c.station, to = state.dir === 'out' ? c.station : 'Bamberg';
+  const days = [...new Set(d.journeys.flatMap(j => j.dates))];
+  const wdShort = s => new Date(s + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short' });
+  const allDays = DATA.days.length;
+  box.innerHTML = `
+    <div><h3>${state.dir === 'out' ? 'ab Bamberg' : 'nach Bamberg'}</h3><h2>${from} → ${to}</h2>
+    <p class="muted" style="margin:4px 0 0">${c.pop.toLocaleString('de-DE')} Einwohner:innen · ${d.journeys.length} Verbindungen mit Abfahrt 14–18 Uhr an ${days.length} Werktagen</p></div>
+    <div class="facts">
+      <div class="fact"><b class="${under3(d.median_min) ? 'u3' : ''}">${fmtDur(d.median_min)}</b><span>typische Fahrzeit (Median)</span></div>
+      <div class="fact"><b>${fmtDur(d.fastest_min)}</b><span>schnellste Verbindung</span></div>
+      <div class="fact"><b>${fmtPct(d.delay.p_ontime)}</b><span>kommt pünktlich an (alle Anschlüsse, &lt; 6 min)</span></div>
+      <div class="fact"><b>${fmtPct(d.delay.p_miss)}</b><span>Risiko, einen Anschluss zu verpassen</span></div>
+      <div class="fact"><b>${fmtPct(d.delay.p_late15)}</b><span>letzter Zug ≥ 15 min verspätet</span></div>
+    </div>
+    <div>
+      <div style="min-width:0"><h3>Verbindungen laut Fahrplan</h3>
+        <div class="tablewrap"><table class="jlist"><thead><tr><th>Tag</th><th>ab</th><th>an</th><th>Dauer</th><th>Umst.</th><th>pünktl.</th><th style="text-align:left">Züge / Umstieg in</th></tr></thead><tbody>
+        ${d.journeys.map(j => `<tr><td>${j.dates.length === allDays ? 'Di–Do' : j.dates.map(wdShort).join(', ')}</td><td class="num">${j.dep}</td><td class="num">${j.arr}</td><td class="num ${under3(j.dur) ? 'u3' : ''}">${fmtDur(j.dur)}</td><td class="num">${j.ch}</td><td>${pill(j.ontime, 'delay')}</td><td class="via">${j.lines.join(' · ')}${j.via.length ? '<br>über ' + j.via.join(', ') : ''}</td></tr>`).join('')}
+        </tbody></table></div>
+        <p class="muted" style="font-size:13px;margin:6px 0 0">Auswertung: ${d.delay.matched} von ${d.delay.total} Verbindungen konnten historischen Ist-Daten zugeordnet werden.</p>
+      </div>
+    </div>`;
+}
+
+function select(city, scroll) {
+  state.sel = state.sel === city && !scroll ? null : city;  // clicking the selected city on the map clears it
+  render();
+  if (scroll) document.getElementById('detail').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+
+function bindSeg(id, key) {
+  document.querySelectorAll(`#${id} button`).forEach(b => b.addEventListener('click', () => { state[key] = b.dataset.v; save(); render(); }));
+}
+function render() {
+  for (const [id, key] of [['dir', 'dir'], ['metric', 'metric']])
+    document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === state[key])));
+  drawMap(); legend(); drawTable(); drawDetail();
+}
+bindSeg('dir', 'dir'); bindSeg('metric', 'metric');
+document.querySelectorAll('#tbl th button').forEach(b => b.addEventListener('click', () => { state.sort = b.dataset.k; save(); drawTable(); }));
+const daysTxt = DATA.days.map(fmtDate).join(', ');
+document.getElementById('hdr-days').textContent = `Fahrplan-Stichtage: ${daysTxt}.`;
+document.getElementById('ft-days').textContent = daysTxt;
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+let lastW = 0;  // redraw the map when its width changes (rotation, window resize)
+new ResizeObserver(([e]) => { const w = Math.round(e.contentRect.width); if (w && Math.abs(w - lastW) > 20) { lastW = w; drawMap(); } }).observe(document.getElementById('map'));
+render();
+</script>

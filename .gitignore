@@ -1,0 +1,9 @@
+# raw downloads (~1.2 GB), see README for sources
+data/raw/
+# local tools and caches
+.venv/
+node/
+cache/
+_unpublished/
+__pycache__/
+*.pyc
