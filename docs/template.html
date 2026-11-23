@@ -17,9 +17,11 @@
   --water: #f3f5f6;
   --accent: #0b7a6e;       /* unter 3 Stunden */
   --accent-soft: #c9e7e2;
-  --b2: #5f9fb0;           /* 3-4 h */
-  --b3: #95b5c6;           /* 4-5 h */
-  --b4: #bccbd6;           /* > 5 h */
+  /* travel-time bands: one teal hue, validated ordinal ramp (strongest = under 3 h) */
+  --t1: #073f39;           /* < 3 h */
+  --t2: #166b61;           /* 3-4 h */
+  --t3: #358b80;           /* 4-5 h */
+  --t4: #66aba1;           /* > 5 h */
   --good: #2f8a4a;
   --warn: #c58a12;
   --bad: #c2412d;
@@ -33,7 +35,7 @@
   :root:not([data-theme="light"]) {
     --bg: #0f161c; --surface: #16212a; --ink: #e6ecef; --muted: #93a2ad; --line: #2a3843;
     --land: #1d2a34; --land-other: #172229; --water: #0f161c;
-    --accent: #3cc2ae; --accent-soft: #17423c; --b2: #4f8ea0; --b3: #3f6676; --b4: #34505d;
+    --accent: #3cc2ae; --accent-soft: #17423c; --t1: #9ff0e2; --t2: #5fbfb1; --t3: #3f8c82; --t4: #2c5f59;
     --good: #5cc278; --warn: #e2ad3e; --bad: #ec6a54; --nodata: #5b6973; --on-sem: #0f161c;
     color-scheme: dark;
   }
@@ -41,7 +43,7 @@
 :root[data-theme="dark"] {
   --bg: #0f161c; --surface: #16212a; --ink: #e6ecef; --muted: #93a2ad; --line: #2a3843;
   --land: #1d2a34; --land-other: #172229; --water: #0f161c;
-  --accent: #3cc2ae; --accent-soft: #17423c; --b2: #4f8ea0; --b3: #3f6676; --b4: #34505d;
+  --accent: #3cc2ae; --accent-soft: #17423c; --t1: #9ff0e2; --t2: #5fbfb1; --t3: #3f8c82; --t4: #2c5f59;
   --good: #5cc278; --warn: #e2ad3e; --bad: #ec6a54; --nodata: #5b6973; --on-sem: #0f161c;
   color-scheme: dark;
 }
@@ -75,7 +77,7 @@ svg.map { width: 100%; height: auto; display: block; max-height: 78vh; overflow:
 .map .ray.alt { stroke-width: 2; stroke-dasharray: 4 4; opacity: .7; }
 .map .ray.sel { stroke-width: 5; opacity: 1; }
 .map .dot { stroke: var(--surface); stroke-width: 1.5; }
-.map .halo { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.map .halo { fill: none; stroke: var(--t1); stroke-width: 2.5; }
 .map.narrow text.t { display: none; }
 .map text { font: 600 var(--fs, 12px) var(--body); fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .map text.t { font: 500 calc(var(--fs, 12px) * .87) var(--mono); fill: var(--muted); }
@@ -205,7 +207,7 @@ function color(c) {
   if (state.metric === 'time') {
     const m = d.median_min;
     if (m == null) return css('--nodata');
-    return m < 180 ? css('--accent') : m < 240 ? css('--b2') : m < 300 ? css('--b3') : css('--b4');
+    return m < 180 ? css('--t1') : m < 240 ? css('--t2') : m < 300 ? css('--t3') : css('--t4');
   }
   const p = d.delay.p_ontime;
   if (p == null) return css('--nodata');
@@ -214,7 +216,7 @@ function color(c) {
 
 function legend() {
   const items = state.metric === 'time'
-    ? [['--accent', 'unter 3 h'], ['--b2', '3–4 h'], ['--b3', '4–5 h'], ['--b4', 'über 5 h']]
+    ? [['--t1', 'unter 3 h'], ['--t2', '3–4 h'], ['--t3', '4–5 h'], ['--t4', 'über 5 h']]
     : [['--good', 'ab 50 % pünktlich'], ['--warn', '30–50 %'], ['--bad', 'unter 30 %'], ['--nodata', 'keine Daten']];
   document.getElementById('legend').innerHTML = items.map(([t, l]) => `<span><i style="background:var(${t})"></i>${l}</span>`).join('')
     + (state.metric === 'time' ? '<span>gestrichelter Kreis: Reichweite der Städte unter 3 h</span>' : '');
